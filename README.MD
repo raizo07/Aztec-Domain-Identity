@@ -1,7 +1,7 @@
-Aztec Noir DNSSEC DKIM Registry
+Aztec Domain Identity
 ===========
 
-A registry for verification of a DKIM key signature up to [the DNSSEC root]. The project stemmed from an idea of building a system which would onboard users to Aztec using emails, or any other open system relying on structured messaging, so the sender domains an user needs to verify are unknown beforehand.
+A registry for verification of a DKIM key signature up to [the DNSSEC root]. The project stemmed from an idea of building a system which would onboard users to Aztec using emails, or any other open system relying on structured messaging, so the sender domains a user needs to verify are unknown beforehand.
 
 This primarily saves users from a situation when
 - the keys checked with ZK-email are rolled-over and verification doesn't pass until a contract owner introduce the new key (if ever),
@@ -11,12 +11,13 @@ This primarily saves users from a situation when
 ## Overview
 This project implements a registry for DNSSEC (Domain Name System Security Extensions) and DKIM (DomainKeys Identified Mail) keys, allowing for cryptographic verification of a DKIM key for email authenticity. The contract maintains a chain of trust starting from a trusted DNSSEC root key down to an individual domain DKIM keys selector, making this part of ZK-email secure as DNSSEC itself. Once a signed key was presented to the contract it stores it hashed identification parameters and anyone checking that key will be asserted that it's genuine.
 
-![the diagram](dnssec_dkim.jpg)
+![the diagram](domain_registry.jpg)
 ## Features
 This really is focused on one task: integrating this contract into ZK-email based contracts with a very simple call so that keys they use could be asserted when possible to be genuine. Adding a key takes much more convoluted calls and also takes some storage.
 
 ### next steps
 This section is long but important. A lot of time and effort sunk into learning DNS, DNSSEC, and adaptation to the difference from Alphabuild (which was a perfect format). The result is design items I didn't saw in the beginning of the journey and would like to implement if somebody finds the whole idea to be interesting.
+
 #### root management
 As much as this project solves DKIM keys management problem for DNSSEC domains, it actually reduces that to management of the DNSSEC root keys. But it's quite a smaller one: they're easily verifiable, rotated once in a few year, generated in advance, and can be added for the entire network via this contract. So they're perfect for management with any kind of simple DAO, Aztec, or another company.
 
@@ -34,7 +35,7 @@ The inticate case mentioned in the previous section shows that CNAME implementat
 
 ##### DKIM
 
-I couldn't find a specification for its revoking. My guess the reason is the verification was designed to be done _on an email reception_ and just removing the key would be enough leaving only those who cached a vulnerable one for the TTL amount of time. But for a ZK-email based contract this would be a **disaster.**
+I couldn't find a specification for its revoking. My guess the reason is the verification was designed to be done _on an email reception_ and just removing the key would be enough leaving only those who cached a vulnerable one for the TTL amount of time. But for a ZK-email based contract this would be an issue.
 
 So the registry would need some kind of its own mechanism for this. For example presenting the private key to mark the DKIM-key revoked. The problem is that publishing the private key of a probably compromised public key can do more harm than good. On the other hand it's not a great approach to allow revocation without publication of the private key since it can be used for censoring a contract by the key owner. So DKIM `Map` should receive the second flag for a _weak revocation_ signalling that the key owner doesn't recommend to use this key; respecting this is up to the caller of the contract. This weak revocation would be done by presentating private key privately; while ordinary revocation by presenting the private key via a public function -- and that would prevent further verifications with this public key.
 
