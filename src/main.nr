@@ -77,12 +77,7 @@ pub contract Main {
                 key_y[i] = packed[i + FQDN_LEN_MAX + 1 + 32] as u8;
             }
             Bytes64DnsKey {
-                domain: BoundedVec::from_parts_unchecked(
-                    // &packed[0..FQDN_LEN_MAX].map(|e| e as u8).as_array(),
-                    d,
-                    packed[FQDN_LEN_MAX] as u32,
-                ), //.map(|e| e as u8),
-                // key: &packed[(FQDN_LEN_MAX + 1)..].map(|e| e as u8).as_array()
+                domain: BoundedVec::from_parts_unchecked(d, packed[FQDN_LEN_MAX] as u32),
                 key_x,
                 key_y,
             }
@@ -214,16 +209,18 @@ pub contract Main {
             rrset_dnskey.bytes.set_unchecked(zsigk_rrset_position + i + 32, zsigk_y[i]);
         }
 
-        assert(std::ecdsa_secp256r1::verify_signature(
-            // ksigk.key[0..32], ksigk.key[32..64],
-            ksigk.key_x,
-            ksigk.key_y,
-            rrsig_dnskey,
-            dep::sha256::sha256_var(
-                rrset_dnskey.bytes.storage(),
-                rrset_dnskey.bytes.len() as u64,
+        assert(
+            std::ecdsa_secp256r1::verify_signature(
+                ksigk.key_x,
+                ksigk.key_y,
+                rrsig_dnskey,
+                dep::sha256::sha256_var(
+                    rrset_dnskey.bytes.storage(),
+                    rrset_dnskey.bytes.len() as u64,
+                ),
             ),
-        ));
+            "DNSKEY RRSIG signature verification failed",
+        );
 
         storage
             .zonesigkey
@@ -265,12 +262,15 @@ pub contract Main {
             rrset_ds.bytes.set_unchecked(ksigk_rrset_position + i + 32, child_ksigk.key_y[i]);
         }
 
-        assert(std::ecdsa_secp256r1::verify_signature(
-            parent_zsigk.key_x,
-            parent_zsigk.key_y,
-            rrsig_ds,
-            dep::sha256::sha256_var(rrset_ds.bytes.storage(), rrset_ds.bytes.len() as u64),
-        ));
+        assert(
+            std::ecdsa_secp256r1::verify_signature(
+                parent_zsigk.key_x,
+                parent_zsigk.key_y,
+                rrsig_ds,
+                dep::sha256::sha256_var(rrset_ds.bytes.storage(), rrset_ds.bytes.len() as u64),
+            ),
+            "DS RRSIG signature verification failed",
+        );
 
         storage.keysigkey.at(pedersen_hash(child_ksigk.pack())).write(true);
     }
@@ -310,12 +310,15 @@ pub contract Main {
             record.set_unchecked(i + dkim_key_position, parts.key[i]);
         }
 
-        assert(std::ecdsa_secp256r1::verify_signature(
-            zsigk_x,
-            zsigk_y,
-            rrsig,
-            dep::sha256::sha256_var(record.storage(), record.len() as u64),
-        ));
+        assert(
+            std::ecdsa_secp256r1::verify_signature(
+                zsigk_x,
+                zsigk_y,
+                rrsig,
+                dep::sha256::sha256_var(record.storage(), record.len() as u64),
+            ),
+            "DKIM RRSIG signature verification failed",
+        );
 
         storage.dkimkey.at(pedersen_hash(parts.pack())).write(true);
     }
