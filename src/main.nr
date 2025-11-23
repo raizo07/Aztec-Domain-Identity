@@ -200,7 +200,7 @@ pub contract Main {
     ) {
         assert(
             storage.keysigkey.at(pedersen_hash(ksigk.pack())).read(),
-            "the key have been revoked or never added",
+            "the key has been revoked or never added",
         );
 
         let mut rrset_dnskey = rrset_dnskey;
@@ -243,19 +243,20 @@ pub contract Main {
     ) {
         assert(
             storage.zonesigkey.at(pedersen_hash(parent_zsigk.pack())).read(),
-            "the key have been revoked or never added",
+            "the key has been revoked or never added",
         );
 
         let l_child = child_ksigk.domain.len();
         let l_parent = parent_zsigk.domain.len();
         // assert(".".as_bytes()[0] == child_ksigk.domain.get(l_child - l_parent), "DS must define a subdomain");
         let mut rrset_ds = rrset_ds;
-        for i in 0..(l_child - l_parent) {
+        let child_prefix_len = l_child - l_parent;
+        for i in 0..child_prefix_len {
             rrset_ds.bytes.set_unchecked(i + child_domain_position, child_ksigk.domain.get(i));
         }
         for i in 0..l_parent {
             rrset_ds.bytes.set_unchecked(
-                i + child_domain_position + l_child,
+                i + child_domain_position + child_prefix_len,
                 parent_zsigk.domain.get(i),
             );
         }
@@ -283,16 +284,19 @@ pub contract Main {
         zsigk_x: [u8; 32],
         zsigk_y: [u8; 32],
     ) {
-        assert(storage
-            .zonesigkey
-            .at(pedersen_hash(Bytes64DnsKey { domain: parts.domain, key_x: zsigk_x, key_y: zsigk_y }
-                .pack()))
-            .read());
+        assert(
+            storage
+                .zonesigkey
+                .at(pedersen_hash(Bytes64DnsKey { domain: parts.domain, key_x: zsigk_x, key_y: zsigk_y }
+                    .pack()))
+                .read(),
+            "the zone signing key has been revoked or never added",
+        );
 
         let mut record = record.bytes;
         let l_selector = parts.selector.len();
         for i in 0..l_selector {
-            record.set_unchecked(i, parts.selector.get_unchecked(i)); // TODO there were a lot of `get` to switch
+            record.set_unchecked(i, parts.selector.get_unchecked(i));
         }
         record.set_unchecked(l_selector, DOT_BYTE);
         for i in 0..10 {
@@ -318,7 +322,10 @@ pub contract Main {
 
     #[public]
     fn check_rsa2048(the: DkimKeyRsa2048) {
-        assert(storage.dkimkey.at(pedersen_hash(the.pack())).read());
+        assert(
+            storage.dkimkey.at(pedersen_hash(the.pack())).read(),
+            "the DKIM key has been revoked or never added",
+        );
     }
 }
 
